@@ -1,0 +1,20 @@
+kGym/kclient/repositories/
+# Ignore the .git directory
+.git
+# Ignore cache files
+__pycache__/
+*.py[codz]
+*$py.class
+# Ignore the node_modules directory anywhere in the project
+**/node_modules
+*.egg-info/
+workspace/
+# Django stuff:
+*.log
+local_settings.py
+db.sqlite3
+db.sqlite3-journal
+
+dashboard
+software-agent-sdk
+tests

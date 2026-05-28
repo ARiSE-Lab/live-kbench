@@ -1,0 +1,25 @@
+# LiteLLM Router Configuration for Gemini 3 Pro Preview (LLM Judge)
+# Based on: workspace/shared/model-configs/swe-agent/gemini-3-pro-preview
+#
+# This configuration uses Google's Gemini 3 Pro Preview model via Vertex AI.
+# The model uses structured output to evaluate patch equivalence.
+#
+# Environment variables required:
+# - GOOGLE_APPLICATION_CREDENTIALS: Path to GCP service account JSON file
+# - VERTEX_PROJECT: GCP project ID (optional, will use default from credentials)
+# - VERTEX_LOCATION: GCP region (default: 'global')
+#
+# See: https://docs.litellm.ai/docs/providers/vertex
+
+model_list:
+  - model_name: gemini-2.5-pro
+    litellm_params:
+      model: vertex_ai/gemini-2.5-pro
+      temperature: 1
+      vertex_location: global
+
+# Router settings at root level
+num_retries: 3
+retry_after: 5
+timeout: 120
+set_verbose: false

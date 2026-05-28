@@ -1,0 +1,15 @@
+{
+  "claude": [
+    "claude-opus-4.5",
+    "claude-opus-4.6",
+    "claude-opus-4.6-bedrock",
+    "claude-sonnet-4.5"
+  ],
+  "gemini": [
+    "gemini-2.5-pro",
+    "gemini-3-flash-preview",
+    "gemini-3-pro-preview",
+    "gemini-3.1-preview",
+    "gemini-3.1-pro-preview"
+  ]
+}

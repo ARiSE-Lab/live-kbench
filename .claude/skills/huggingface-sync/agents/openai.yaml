@@ -1,0 +1,4 @@
+interface:
+  display_name: "HuggingFace Sync"
+  short_description: "Import and export kArena snapshots on HuggingFace Hub."
+  default_prompt: "Sync kArena bugs and datasets with HuggingFace Hub."

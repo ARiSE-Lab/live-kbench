@@ -1,0 +1,4 @@
+interface:
+  display_name: "kArena Deploy"
+  short_description: "Generate kArena shell task factory snippets."
+  default_prompt: "Generate ready-to-paste kArena shell commands for this operation."

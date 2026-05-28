@@ -1,0 +1,6 @@
+agent:
+  model: &model
+    name: gemini-3-pro-preview
+    temperature: 1.0
+    completion_kwargs:
+      vertex_location: 'global'

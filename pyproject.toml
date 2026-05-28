@@ -1,0 +1,36 @@
+[project]
+name = "live-kbench"
+version = "0.0.0"
+description = "Top-level workspace binding kArena + kGym Python packages"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "karena",
+    "kgym-client",
+    "kgym-core",
+]
+
+[tool.uv]
+package = false
+
+[tool.uv.workspace]
+members = [
+    "kArena",
+    "kGym/kclient",
+    "kGym/kcore",
+]
+
+[tool.uv.sources]
+karena = { workspace = true }
+kgym-client = { workspace = true }
+kgym-core = { workspace = true }
+
+[dependency-groups]
+dev = [
+    "pytest>=8",
+    "pytest-asyncio>=0.24",
+]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]

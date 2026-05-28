@@ -1,0 +1,6 @@
+[llm]
+model = "vertex_ai/gemini-3-pro-preview"
+num_retries = 10
+reasoning_effort = "high"
+temperature = 1.0
+completion_kwargs = { vertex_location = "global" }

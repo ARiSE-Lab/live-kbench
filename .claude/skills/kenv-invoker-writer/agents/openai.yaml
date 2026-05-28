@@ -1,0 +1,4 @@
+interface:
+  display_name: "kEnv Invoker Writer"
+  short_description: "Write kEnv agent invokers and Docker integration."
+  default_prompt: "Write or update a kEnv agent invoker for live-kBench."

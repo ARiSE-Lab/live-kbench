@@ -1,0 +1,4 @@
+interface:
+  display_name: "kGym Deploy"
+  short_description: "Deploy kGym locally or on GCP."
+  default_prompt: "Plan or run a kGym deployment for local or GCP."

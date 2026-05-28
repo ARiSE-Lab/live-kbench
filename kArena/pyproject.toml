@@ -1,0 +1,31 @@
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "karena"
+description = "kArena — async orchestration layer for running and evaluating AI coding agents on Linux kernel bugs"
+requires-python = ">=3.13"
+version = "v1.0.0"
+dependencies = [
+    "kgym-core",
+    "kgym-client",
+    "aiolimiter",
+    "aiosqlite",
+    "google-cloud-storage",
+    "litellm!=1.82.7,!=1.82.8",
+    "pydantic",
+    "unidiff",
+    "PyYAML",
+    "ptpython",
+    "datasets",
+    "huggingface-hub",
+    "python-dotenv",
+]
+
+[project.scripts]
+karena-shell = "kArena.shell:main"
+
+[tool.setuptools]
+packages = ["kArena", "kArena.db", "kArena.models", "kArena.evaluation"]
+package-dir = { "kArena" = ".", "kArena.db" = "db", "kArena.models" = "models", "kArena.evaluation" = "evaluation" }

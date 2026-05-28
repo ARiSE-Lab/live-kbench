@@ -1,0 +1,7 @@
+model:
+  model_name: "vertex_ai/gemini-3-pro-preview"
+  model_class: "litellm"
+  model_kwargs:
+    temperature: 1.0
+    reasoning_effort: high
+    vertex_location: 'global'

@@ -1,0 +1,186 @@
+#!/usr/bin/env python3
+import os, json
+from pathlib import Path
+import asyncio
+from unidiff import PatchSet
+
+OUTPUT_PATH = Path('/KBDr/output')
+PATCH_PATH = OUTPUT_PATH / 'patch.txt'
+TRAJ_PATH = OUTPUT_PATH / 'traj.json'
+
+CTAGS_ARGS = [
+    "ctags",
+    "-I",
+    "__initdata,__exitdata,__initconst,__ro_after_init",
+    "-I",
+    "__initdata_memblock",
+    "-I",
+    "__refdata,__attribute,__maybe_unused,__always_unused",
+    "-I",
+    "__acquires,__releases,__deprecated,__always_inline",
+    "-I",
+    "__read_mostly,__aligned,____cacheline_aligned",
+    "-I",
+    "____cacheline_aligned_in_smp",
+    "-I",
+    "__cacheline_aligned,__cacheline_aligned_in_smp",
+    "-I",
+    "____cacheline_internodealigned_in_smp",
+    "-I",
+    "__used,__packed,__packed2__,__must_check,__must_hold",
+    "-I",
+    "EXPORT_SYMBOL,EXPORT_SYMBOL_GPL,ACPI_EXPORT_SYMBOL",
+    "-I",
+    "DEFINE_TRACE,EXPORT_TRACEPOINT_SYMBOL,EXPORT_TRACEPOINT_SYMBOL_GPL",
+    "-I",
+    "static,const",
+    "--extra=+fq",
+    "--c-kinds=+px",
+    "--fields=+iaS+range",
+    "--langmap=c:+.h",
+    "--output-format=json",
+    "--regex-asm=/^\\(ENTRY\\|_GLOBAL\\)(\\([[:alnum:]_\\\\]*\\)).*/\\2/b",
+    "--regex-c=/^SYSCALL_DEFINE[0-9](\\([[:alnum:]_]*\\).*/sys_\\1/b",
+    "--regex-c=/^BPF_CALL_[0-9](\\([[:alnum:]_]*\\).*/\\1/b",
+    "--regex-c=/^COMPAT_SYSCALL_DEFINE[0-9](\\([[:alnum:]_]*\\).*/compat_sys_\\1/b",
+    "--regex-c=/^TRACE_EVENT(\\([[:alnum:]_]*\\).*/trace_\\1/b",
+    "--regex-c=/^TRACE_EVENT(\\([[:alnum:]_]*\\).*/trace_\\1_rcuidle/b",
+    "--regex-c=/^DEFINE_EVENT([^,)]*, *\\([[:alnum:]_]*\\).*/trace_\\1/b",
+    "--regex-c=/^DEFINE_EVENT([^,)]*, *\\([[:alnum:]_]*\\).*/trace_\\1_rcuidle/b",
+    "--regex-c=/^DEFINE_INSN_CACHE_OPS(\\([[:alnum:]_]*\\).*/get_\\1_slot/b",
+    "--regex-c=/^DEFINE_INSN_CACHE_OPS(\\([[:alnum:]_]*\\).*/free_\\1_slot/b",
+    "--regex-c=/^PAGEFLAG(\\([[:alnum:]_]*\\).*/Page\\1/b",
+    "--regex-c=/^PAGEFLAG(\\([[:alnum:]_]*\\).*/SetPage\\1/b",
+    "--regex-c=/^PAGEFLAG(\\([[:alnum:]_]*\\).*/ClearPage\\1/b",
+    "--regex-c=/^TESTSETFLAG(\\([[:alnum:]_]*\\).*/TestSetPage\\1/b",
+    "--regex-c=/^TESTPAGEFLAG(\\([[:alnum:]_]*\\).*/Page\\1/b",
+    "--regex-c=/^SETPAGEFLAG(\\([[:alnum:]_]*\\).*/SetPage\\1/b",
+    "--regex-c=/\\<__SETPAGEFLAG(\\([[:alnum:]_]*\\).*/__SetPage\\1/b",
+    "--regex-c=/\\<TESTCLEARFLAG(\\([[:alnum:]_]*\\).*/TestClearPage\\1/b",
+    "--regex-c=/\\<__TESTCLEARFLAG(\\([[:alnum:]_]*\\).*/TestClearPage\\1/b",
+    "--regex-c=/\\<CLEARPAGEFLAG(\\([[:alnum:]_]*\\).*/ClearPage\\1/b",
+    "--regex-c=/\\<__CLEARPAGEFLAG(\\([[:alnum:]_]*\\).*/__ClearPage\\1/b",
+    "--regex-c=/^__PAGEFLAG(\\([[:alnum:]_]*\\).*/__SetPage\\1/b",
+    "--regex-c=/^__PAGEFLAG(\\([[:alnum:]_]*\\).*/__ClearPage\\1/b",
+    "--regex-c=/^PAGEFLAG_FALSE(\\([[:alnum:]_]*\\).*/Page\\1/b",
+    "--regex-c=/\\<TESTSCFLAG(\\([[:alnum:]_]*\\).*/TestSetPage\\1/b",
+    "--regex-c=/\\<TESTSCFLAG(\\([[:alnum:]_]*\\).*/TestClearPage\\1/b",
+    "--regex-c=/\\<SETPAGEFLAG_NOOP(\\([[:alnum:]_]*\\).*/SetPage\\1/b",
+    "--regex-c=/\\<CLEARPAGEFLAG_NOOP(\\([[:alnum:]_]*\\).*/ClearPage\\1/b",
+    "--regex-c=/\\<__CLEARPAGEFLAG_NOOP(\\([[:alnum:]_]*\\).*/__ClearPage\\1/b",
+    "--regex-c=/\\<TESTCLEARFLAG_FALSE(\\([[:alnum:]_]*\\).*/TestClearPage\\1/b",
+    "--regex-c=/^PAGE_TYPE_OPS(\\([[:alnum:]_]*\\).*/Page\\1/b",
+    "--regex-c=/^PAGE_TYPE_OPS(\\([[:alnum:]_]*\\).*/__SetPage\\1/b",
+    "--regex-c=/^PAGE_TYPE_OPS(\\([[:alnum:]_]*\\).*/__ClearPage\\1/b",
+    "--regex-c=/^TASK_PFA_TEST([^,]*, *\\([[:alnum:]_]*\\))/task_\\1/b",
+    "--regex-c=/^TASK_PFA_SET([^,]*, *\\([[:alnum:]_]*\\))/task_set_\\1/b",
+    "--regex-c=/^TASK_PFA_CLEAR([^,]*, *\\([[:alnum:]_]*\\))/task_clear_\\1/b",
+    "--regex-c=/^DEF_MMIO_\\(IN\\|OUT\\)_[XD](\\([[:alnum:]_]*\\),[^)]*)/\\2/b",
+    "--regex-c=/^DEBUGGER_BOILERPLATE(\\([[:alnum:]_]*\\))/\\1/b",
+    "--regex-c=/^DEF_PCI_AC_\\(\\|NO\\)RET(\\([[:alnum:]_]*\\).*/\\2/b",
+    "--regex-c=/^PCI_OP_READ(\\(\\w*\\).*[1-4])/pci_bus_read_config_\\1/b",
+    "--regex-c=/^PCI_OP_WRITE(\\(\\w*\\).*[1-4])/pci_bus_write_config_\\1/b",
+    "--regex-c=/\\<DEFINE_\\(RT_MUTEX\\|MUTEX\\|SEMAPHORE\\|SPINLOCK\\)(\\([[:alnum:]_]*\\)/\\2/v/b",
+    "--regex-c=/\\<DEFINE_\\(RAW_SPINLOCK\\|RWLOCK\\|SEQLOCK\\)(\\([[:alnum:]_]*\\)/\\2/v/b",
+    "--regex-c=/\\<DECLARE_\\(RWSEM\\|COMPLETION\\)(\\([[:alnum:]_]\\+\\)/\\2/v/b",
+    "--regex-c=/\\<DECLARE_BITMAP(\\([[:alnum:]_]*\\)/\\1/v/b",
+    "--regex-c=/\\(^\\|\\s\\)\\(\\|L\\|H\\)LIST_HEAD(\\([[:alnum:]_]*\\)/\\3/v/b",
+    "--regex-c=/\\(^\\|\\s\\)RADIX_TREE(\\([[:alnum:]_]*\\)/\\2/v/b",
+    "--regex-c=/\\<DEFINE_PER_CPU([^,]*, *\\([[:alnum:]_]*\\)/\\1/v/b",
+    "--regex-c=/\\<DEFINE_PER_CPU_SHARED_ALIGNED([^,]*, *\\([[:alnum:]_]*\\)/\\1/v/b",
+    "--regex-c=/\\<DECLARE_WAIT_QUEUE_HEAD(\\([[:alnum:]_]*\\)/\\1/v/b",
+    "--regex-c=/\\<DECLARE_\\(TASKLET\\|WORK\\|DELAYED_WORK\\)(\\([[:alnum:]_]*\\)/\\2/v/b",
+    "--regex-c=/\\(^\\s\\)OFFSET(\\([[:alnum:]_]*\\)/\\2/v/b",
+    "--regex-c=/\\(^\\s\\)DEFINE(\\([[:alnum:]_]*\\)/\\2/v/b",
+    "--regex-c=/\\<\\(DEFINE\\|DECLARE\\)_HASHTABLE(\\([[:alnum:]_]*\\)/\\2/v/b",
+    "--regex-c=/\\<DEFINE_ID\\(R\\|A\\)(\\([[:alnum:]_]\\+\\)/\\2/b",
+    "--regex-c=/\\<DEFINE_WD_CLASS(\\([[:alnum:]_]\\+\\)/\\1/b",
+    "--regex-c=/\\<ATOMIC_NOTIFIER_HEAD(\\([[:alnum:]_]\\+\\)/\\1/b",
+    "--regex-c=/\\<RAW_NOTIFIER_HEAD(\\([[:alnum:]_]\\+\\)/\\1/b",
+    "--regex-c=/\\<DECLARE_FAULT_ATTR(\\([[:alnum:]_]\\+\\)/\\1/b",
+    "--regex-c=/\\<BLOCKING_NOTIFIER_HEAD(\\([[:alnum:]_]\\+\\)/\\1/b",
+    "--regex-c=/\\<DEVICE_ATTR_\\(RW\\|RO\\|WO\\)(\\([[:alnum:]_]\\+\\)/dev_attr_\\2/b",
+    "--regex-c=/\\<DRIVER_ATTR_\\(RW\\|RO\\|WO\\)(\\([[:alnum:]_]\\+\\)/driver_attr_\\2/b",
+    "--regex-c=/\\<\\(DEFINE\\|DECLARE\\)_STATIC_KEY_\\(TRUE\\|FALSE\\)\\(\\|_RO\\)(\\([[:alnum:]_]\\+\\)/\\4/b",
+    "--regex-c=/^SEQCOUNT_LOCKTYPE(\\([^,]*\\),[[:space:]]*\\([^,]*\\),[^)]*)/seqcount_\\2_t/b",
+    "--regex-c=/^SEQCOUNT_LOCKTYPE(\\([^,]*\\),[[:space:]]*\\([^,]*\\),[^)]*)/seqcount_\\2_init/b"
+]
+
+async def get_ctags(path: str):
+    path = str((Path('/linux') / path).absolute())
+    proc = await asyncio.subprocess.create_subprocess_exec(
+        *CTAGS_ARGS, path,
+        stdin=asyncio.subprocess.DEVNULL,
+        stdout=asyncio.subprocess.PIPE,
+        stderr=asyncio.subprocess.DEVNULL
+    )
+    stdout, _ = await proc.communicate()
+    stdout = stdout.decode('utf-8')
+    lines = stdout.splitlines()
+    return [json.loads(ln) for ln in lines]
+
+async def main():
+    ps = PatchSet(PATCH_PATH.read_text())
+    tags_before = {}
+    tags_after = {}
+
+    async with asyncio.TaskGroup() as tg:
+        for file in ps:
+            tags_before[file.path] = tg.create_task(get_ctags(file.path))
+    for file in ps:
+        tags_before[file.path] = tags_before[file.path].result()
+
+    assert os.system(f'cd /linux && git apply --allow-empty < {str(PATCH_PATH)}') == 0
+
+    async with asyncio.TaskGroup() as tg:
+        for file in ps:
+            tags_after[file.path] = tg.create_task(get_ctags(file.path))
+    for file in ps:
+        tags_after[file.path] = tags_after[file.path].result()
+
+    modified_functions = set()
+    modified_files = set()
+    numModifiedLines = 0
+
+    for f in ps:
+        if f.path.endswith('.c') or f.path.endswith('.h'):
+            modified_files.add(f.path)
+    for f in ps:
+        if not (f.path.endswith('.c') or f.path.endswith('.h')):
+            continue
+        if f.is_added_file:
+            # extract all functions from tags_after;
+            for tag in filter(lambda x: x['kind'] == 'function', tags_after.get(f.path, [])):
+                modified_functions.add(tag['name'])
+        elif f.is_removed_file:
+            # extract all functions from tags_before;
+            for tag in filter(lambda x: x['kind'] == 'function', tags_before.get(f.path, [])):
+                modified_functions.add(tag['name'])
+        else:
+            # extract lines in both tags_after, tags_before;
+            f_tags_before = list(filter(lambda x: x['kind'] == 'function', tags_before.get(f.path, [])))
+            f_tags_after = list(filter(lambda x: x['kind'] == 'function', tags_after.get(f.path, [])))
+            for hunk in f:
+                for ln in hunk.source_lines():
+                    if not ln.is_context:
+                        numModifiedLines += 1
+                        for tag in f_tags_before:
+                            if int(tag['line']) <= ln.source_line_no and ln.source_line_no <= int(tag.get('end', tag.get('line'))):
+                                modified_functions.add(tag['name'])
+                for ln in hunk.target_lines():
+                    if not ln.is_context:
+                        numModifiedLines += 1
+                        for tag in f_tags_after:
+                            if int(tag['line']) <= ln.target_line_no and ln.target_line_no <= int(tag.get('end', tag.get('line'))):
+                                modified_functions.add(tag['name'])
+
+    return modified_files, modified_functions, numModifiedLines
+
+if __name__ == '__main__':
+    assert os.system('/KBDr/initialize') == 0
+    modified_files, modified_functions, numModifiedLines = asyncio.run(main())
+    TRAJ_PATH.write_text(json.dumps({
+        'modifiedFiles': list(modified_files),
+        'modifiedFunctions': list(modified_functions),
+        'numModifiedLines': numModifiedLines
+    }))
