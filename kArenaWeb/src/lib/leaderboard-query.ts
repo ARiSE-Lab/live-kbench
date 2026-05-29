@@ -80,6 +80,7 @@ export type LeaderboardResult = {
   fixedTimeStart: string;
   fixedTimeEnd: string;
   k: number;
+  bugCount: number;
   rows: LeaderboardEntry[];
 };
 
@@ -122,6 +123,7 @@ export function evaluateLeaderboard(input: unknown): LeaderboardResult {
   if (cachedResult) {
     return cachedResult;
   }
+  const selectedBugIds = fetchSelectedBugIds(dataset.datasetId, fixedTimeStart, fixedTimeEnd);
 
   const result = {
     datasetId: dataset.datasetId,
@@ -131,7 +133,8 @@ export function evaluateLeaderboard(input: unknown): LeaderboardResult {
     fixedTimeStart,
     fixedTimeEnd,
     k,
-    rows: buildEntries(fetchLeaderboardRows(dataset.datasetId, fixedTimeStart, fixedTimeEnd), k),
+    bugCount: selectedBugIds.length,
+    rows: buildEntries(fetchLeaderboardRows(dataset.datasetId, fixedTimeStart, fixedTimeEnd), selectedBugIds, k),
   };
   leaderboardCache.set(cacheKey, result);
 
@@ -190,12 +193,30 @@ function getDefaultDataset(): LeaderboardDataset {
   };
 }
 
+function fetchSelectedBugIds(datasetId: number, fixedTimeStart: string, fixedTimeEnd: string) {
+  const rows = getDatabase()
+    .prepare(
+      `
+      SELECT DISTINCT bdm.bugId
+      FROM bug_dataset_members bdm
+      INNER JOIN developer_patches dp ON dp.bugId = bdm.bugId
+      WHERE bdm.datasetId = ?
+        AND dp.fixedTime >= ?
+        AND dp.fixedTime <= ?
+      ORDER BY bdm.bugId
+      `,
+    )
+    .all(datasetId, fixedTimeStart, fixedTimeEnd) as Array<{ bugId: string }>;
+
+  return rows.map((row) => row.bugId);
+}
+
 function fetchLeaderboardRows(datasetId: number, fixedTimeStart: string, fixedTimeEnd: string) {
   return getDatabase()
     .prepare(
       `
       WITH selected_bugs AS (
-        SELECT bdm.bugId
+        SELECT DISTINCT bdm.bugId
         FROM bug_dataset_members bdm
         INNER JOIN developer_patches dp ON dp.bugId = bdm.bugId
         WHERE bdm.datasetId = ?
@@ -233,7 +254,7 @@ function fetchLeaderboardRows(datasetId: number, fixedTimeStart: string, fixedTi
     .all(datasetId, fixedTimeStart, fixedTimeEnd) as LeaderboardRow[];
 }
 
-function buildEntries(rows: LeaderboardRow[], k: number) {
+function buildEntries(rows: LeaderboardRow[], selectedBugIds: string[], k: number) {
   const byConfig = new Map<number, LeaderboardRow[]>();
   for (const row of rows) {
     const configRows = byConfig.get(row.agentConfigId) ?? [];
@@ -245,10 +266,9 @@ function buildEntries(rows: LeaderboardRow[], k: number) {
     const first = configRows[0];
     const agentMetadata = getAgentMetadata(first.agent);
     const modelMetadata = getModelMetadata(first.model);
-    const bugIds = Array.from(new Set(configRows.map((row) => row.bugId))).sort();
     const runCount = new Set(configRows.map((row) => row.agentPatchId).filter((value): value is number => value !== null)).size;
     const runsByBug = buildRunsByBug(configRows);
-    const metrics = calculateMetrics(bugIds, runsByBug, k);
+    const metrics = calculateMetrics(selectedBugIds, runsByBug, k);
 
     return {
       agentConfigId: first.agentConfigId,
@@ -263,8 +283,8 @@ function buildEntries(rows: LeaderboardRow[], k: number) {
       modelFamily: modelMetadata.family,
       modelIconPath: modelMetadata.iconPath,
       modelIconSize: modelMetadata.iconSize,
-      bugCount: bugIds.length,
-      bugsWithKRuns: countBugsWithKRuns(bugIds, runsByBug, k),
+      bugCount: selectedBugIds.length,
+      bugsWithKRuns: countBugsWithKRuns(selectedBugIds, runsByBug, k),
       runCount,
       metrics,
     };

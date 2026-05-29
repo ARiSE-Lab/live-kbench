@@ -210,7 +210,7 @@ export function LeaderboardClient({ datasets }: { datasets: DatasetSummary[] }) 
                 <strong>Oracle</strong>: perfect localization hint
               </span>
               <span>
-                <strong>-</strong>: not enough independent agent runs
+                <strong>-</strong>: fewer than k runs for at least one selected bug
               </span>
             </div>
             {loading ? <span className="statusPill">Loading</span> : null}
@@ -265,7 +265,9 @@ export function LeaderboardClient({ datasets }: { datasets: DatasetSummary[] }) 
                       </div>
                     </div>
                   </td>
-                  <td>{row.bugsWithKRuns}</td>
+                  <td>
+                    {row.bugsWithKRuns}/{row.bugCount}
+                  </td>
                   {METRIC_ORDER.map((metricKey) => (
                     <td key={metricKey}>{formatMetric(row.metrics[metricKey])}</td>
                   ))}

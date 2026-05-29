@@ -548,6 +548,8 @@ class DataPipeline:
         git_url: str | None = None
         if data.crashes and data.crashes[0].kernelSourceGit:
             git_url = data.crashes[0].kernelSourceGit
+        if git_url.startswith('git://'):
+            git_url = 'https://' + git_url[len('git://'):]
         return commit_id, git_url
 
     async def insert_syzbot_bug(
