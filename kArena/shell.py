@@ -30,7 +30,7 @@ load_dotenv()
 def _setup_logging(db_path: Path) -> None:
     log_path = db_path.with_suffix(".log")
     logging.basicConfig(
-        level=logging.DEBUG,
+        level=logging.INFO,
         format="%(asctime)s %(levelname)-8s %(name)s: %(message)s",
         handlers=[logging.FileHandler(log_path)],
     )
