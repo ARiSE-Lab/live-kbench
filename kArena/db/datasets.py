@@ -138,6 +138,31 @@ class DatasetMixin:
                 ))
             return datasets
 
+    async def update_dataset(
+        self,
+        dataset_id: int,
+        description: str,
+        added_time: datetime,
+        bug_ids: list[str],
+        attrs: dict[str, str],
+    ) -> None:
+        """Overwrite an existing dataset's metadata and member bugs."""
+        async with self._conn.cursor() as cur:
+            await cur.execute(
+                'UPDATE bug_datasets SET description = ?, addedTime = ?, attrs = ? WHERE datasetId = ?',
+                (description, added_time.isoformat(), json.dumps(attrs), dataset_id)
+            )
+            await cur.execute(
+                'DELETE FROM bug_dataset_members WHERE datasetId = ?',
+                (dataset_id,)
+            )
+            if bug_ids:
+                await cur.executemany(
+                    'INSERT INTO bug_dataset_members (datasetId, bugId) VALUES (?, ?)',
+                    [(dataset_id, bug_id) for bug_id in bug_ids]
+                )
+            await self._conn.commit()
+
     async def get_dataset_by_name(self, name: str) -> BugDataset | None:
         """Look up a dataset by its unique name; returns None if not found."""
         async with self._conn.cursor() as cur:

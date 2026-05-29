@@ -172,15 +172,23 @@ class HFBugImporter:
         new_names: list[str] = []
         for row in hf_ds:
             name = row['datasetName']
-            if await self.db.get_dataset_by_name(name) is not None:
-                continue
-            await self.db.create_dataset(
-                name=name,
-                description=row['description'],
-                bug_ids=json.loads(row['bugIds']),
-                attrs=json.loads(row['attrs']),
-            )
-            new_names.append(name)
+            existing = await self.db.get_dataset_by_name(name)
+            if existing is not None:
+                await self.db.update_dataset(
+                    dataset_id=existing.datasetId,
+                    description=row['description'],
+                    added_time=datetime.fromisoformat(row['addedTime']),
+                    bug_ids=json.loads(row['bugIds']),
+                    attrs=json.loads(row['attrs']),
+                )
+            else:
+                await self.db.create_dataset(
+                    name=name,
+                    description=row['description'],
+                    bug_ids=json.loads(row['bugIds']),
+                    attrs=json.loads(row['attrs']),
+                )
+                new_names.append(name)
 
         logger.info(f"[HFBugImporter] inserted {len(new_names)} new dataset definitions")
         return new_names
